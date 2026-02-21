@@ -1,9 +1,7 @@
 package com.medicare.backend.model;
 
-
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,6 +10,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Table(name = "appointments")
 public class Appointment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,6 +21,7 @@ public class Appointment {
     @ManyToOne
     private Patient patient;
 
-    private LocalDateTime appointmentTime;
-    private String status; // PENDING, COMPLETED, CANCELLED
+    private LocalDateTime appointmentTime; 
+
+    private String status; 
 }

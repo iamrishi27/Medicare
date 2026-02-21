@@ -1,5 +1,7 @@
 package com.medicare.backend.service;
 
+import com.medicare.backend.dto.AppointmentRequest;
+import com.medicare.backend.dto.AppointmentResponse;
 import com.medicare.backend.model.Appointment;
 import com.medicare.backend.model.Doctor;
 import com.medicare.backend.model.Patient;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,31 +24,82 @@ public class AppointmentService {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
 
-    public Appointment bookAppointment(Long doctorId, Long patientId, LocalDateTime time) {
+    // Helper to convert Appointment -> AppointmentResponse
+    private AppointmentResponse toResponse(Appointment appointment) {
+        AppointmentResponse response = new AppointmentResponse();
+        response.setId(appointment.getId());
+        response.setDoctorName(appointment.getDoctor().getName());
+        response.setPatientName(appointment.getPatient().getName());
+        response.setAppointmentTime(appointment.getAppointmentTime().toString());
+        response.setStatus(appointment.getStatus());
+        return response;
+    }
 
-        Doctor doctor = doctorRepository.findById(doctorId)
+    // GET all
+    public List<AppointmentResponse> getAllAppointmentsResponse() {
+        return appointmentRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    // GET by id
+    public Optional<AppointmentResponse> getAppointmentByIdResponse(Long id) {
+        return appointmentRepository.findById(id).map(this::toResponse);
+    }
+
+    // CREATE
+    public AppointmentResponse createAppointmentResponse(AppointmentRequest request) {
+        Doctor doctor = doctorRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new RuntimeException("Doctor not found"));
-
-        Patient patient = patientRepository.findById(patientId)
+        Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
 
         Appointment appointment = new Appointment();
         appointment.setDoctor(doctor);
         appointment.setPatient(patient);
-        appointment.setAppointmentTime(time);
+        appointment.setAppointmentTime(LocalDateTime.parse(request.getAppointmentTime()));
         appointment.setStatus("PENDING");
 
-        return appointmentRepository.save(appointment);
+        return toResponse(appointmentRepository.save(appointment));
     }
 
-    public List<Appointment> getAllAppointments() {
-        return appointmentRepository.findAll();
-    }
-
-    public void cancelAppointment(Long id) {
-        Appointment appointment = appointmentRepository.findById(id)
+    // UPDATE
+    public AppointmentResponse updateAppointmentResponse(Long id, AppointmentRequest request) {
+        Appointment existing = appointmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appointment not found"));
-        appointment.setStatus("CANCELLED");
-        appointmentRepository.save(appointment);
+
+        Doctor doctor = doctorRepository.findById(request.getDoctorId())
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        Patient patient = patientRepository.findById(request.getPatientId())
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
+
+        existing.setDoctor(doctor);
+        existing.setPatient(patient);
+        existing.setAppointmentTime(LocalDateTime.parse(request.getAppointmentTime()));
+        existing.setStatus("PENDING"); // or keep existing.getStatus()
+
+        return toResponse(appointmentRepository.save(existing));
+    }
+
+    // DELETE
+    public void deleteAppointment(Long id) {
+        appointmentRepository.deleteById(id);
+    }
+
+    // GET by doctor
+    public List<AppointmentResponse> getAppointmentsByDoctorResponse(Long doctorId) {
+        return appointmentRepository.findByDoctorId(doctorId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    // GET by patient
+    public List<AppointmentResponse> getAppointmentsByPatientResponse(Long patientId) {
+        return appointmentRepository.findByPatientId(patientId)
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 }
